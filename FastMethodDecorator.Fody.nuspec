@@ -1,25 +1,26 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>MethodDecorator.Fody</id>
-    <version>0.9.0.5</version>
-    <title>MethodDecorator.Fody</title>
-    <authors>Alexey Suvorov</authors>
-    <owners>Alexey Suvorov</owners>
-    <projectUrl>https://github.com/alexeysuvorov/MethodDecorator</projectUrl>
+    <id>FastMethodDecorator.Fody</id>
+    <version>1.0.0</version>
+    <title>FastMethodDecorator.Fody</title>
+    <authors>Nick Nicholls</authors>
+    <owners>Nick Nicholls</owners>
+    <projectUrl>https://github.com/FUR10N/MethodDecorator</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Fody add-in to decorate arbitrary methods to run code before and after invocation. Fork of https://github.com/Fody/MethodDecorator </description>
-    <copyright>Copyright Alexey Suvorov 2015</copyright>
+    <copyright>© 2016 Citrix Systems, Inc. All rights reserved.</copyright>
     <tags>ILWeaving Fody AOP</tags>
   <dependencies>
     <dependency id="Fody"/>
   </dependencies>
   </metadata>
   <files>
-    <file src="MethodDecorator.Fody\bin\Release\MethodDecorator.Fody.dll" target="" />
+    <file src="MethodDecorator.Fody\bin\Release\FastMethodDecorator.Fody.dll" target="" />
     <file src="MethodDecoratorInterfaces\bin\Release\MethodDecoratorInterfaces.dll" target=""/>
     <file src="install.ps1" target="Tools" />
     <file src="uninstall.ps1" target="Tools" />
     <file src="Fody_ToBeDeleted.txt" target="Content" />
+    <file src="formatting.txt" target="" />
   </files>
 </package>

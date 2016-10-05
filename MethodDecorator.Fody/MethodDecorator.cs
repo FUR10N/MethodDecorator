@@ -2,31 +2,64 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Xml.Linq;
 
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
 namespace MethodDecorator.Fody {
-    public class MethodDecorator {
+    public class MethodDecorator
+    {
+        private bool includeParameters = true;
+
+        private string methodFormat;
+
         private readonly ReferenceFinder _referenceFinder;
 
-        public MethodDecorator(ModuleDefinition moduleDefinition) {
+        public MethodDecorator(ModuleDefinition moduleDefinition, XElement config)
+        {
+            ReadXmlConfig(config);
             this._referenceFinder = new ReferenceFinder(moduleDefinition);
+        }
+
+        private void ReadXmlConfig(XElement config)
+        {
+            if (config == null)
+            {
+                return;
+            }
+            var includeCommandNotifier = config.Attribute("IncludeParameters");
+            if (includeCommandNotifier != null)
+            {
+                if (!bool.TryParse(includeCommandNotifier.Value, out includeParameters))
+                {
+                    throw new Exception(string.Format("Could not parse 'IncludeParameters' from '{0}'.", includeCommandNotifier.Value));
+                }
+            }
+            var formatAttr = config.Attribute("MethodFormat");
+            if (formatAttr != null)
+            {
+                methodFormat = formatAttr.Value;
+            }
         }
 
         public void Decorate(TypeDefinition type, MethodDefinition method, CustomAttribute attribute) {
             method.Body.InitLocals = true;
             
-            var methodBaseTypeRef = this._referenceFinder.GetTypeReference(typeof(MethodBase));
+            //var methodBaseTypeRef = this._referenceFinder.GetTypeReference(typeof(string));
 
             var exceptionTypeRef = this._referenceFinder.GetTypeReference(typeof(Exception));
             var parameterTypeRef = this._referenceFinder.GetTypeReference(typeof(object));
             var parametersArrayTypeRef = new ArrayType(parameterTypeRef);
 
-            var methodVariableDefinition = AddVariableDefinition(method, "__fody$method", methodBaseTypeRef);
+            //var methodVariableDefinition = AddVariableDefinition(method, "__fody$method", methodBaseTypeRef);
             var attributeVariableDefinition = AddVariableDefinition(method, "__fody$attribute", attribute.AttributeType);
             var exceptionVariableDefinition = AddVariableDefinition(method, "__fody$exception", exceptionTypeRef);
-            var parametersVariableDefinition = AddVariableDefinition(method, "__fody$parameters", parametersArrayTypeRef);
+            VariableDefinition parametersVariableDefinition = null;
+            if (includeParameters)
+            {
+                parametersVariableDefinition = AddVariableDefinition(method, "__fody$parameters", parametersArrayTypeRef);
+            }
 
             VariableDefinition retvalVariableDefinition = null;
             if (method.ReturnType.FullName != "System.Void")
@@ -50,25 +83,27 @@ namespace MethodDecorator.Fody {
             var initAttributeVariable = this.GetAttributeInstanceInstructions(processor,
                                                                          attribute,
                                                                          method,
-                                                                         attributeVariableDefinition,
-                                                                         methodVariableDefinition);
+                                                                         attributeVariableDefinition);
 
             IEnumerable<Instruction> callInitInstructions = null,
                                      createParametersArrayInstructions = null;
 
             if (null != initMethodRef) {
-                createParametersArrayInstructions = CreateParametersArrayInstructions(
-                    processor,
-                    method,
-                    parameterTypeRef,
-                    parametersVariableDefinition);
+                if (includeParameters)
+                {
+                    createParametersArrayInstructions = CreateParametersArrayInstructions(
+                        processor,
+                        method,
+                        parameterTypeRef,
+                        parametersVariableDefinition);
+                }
 
                 callInitInstructions = GetCallInitInstructions(
                     processor,
                     type,
                     method,
                     attributeVariableDefinition,
-                    methodVariableDefinition,
+                    FormatMethodName(method, methodFormat),
                     parametersVariableDefinition,
                     initMethodRef);
             }
@@ -88,7 +123,10 @@ namespace MethodDecorator.Fody {
             processor.InsertBefore(methodBodyFirstInstruction, initAttributeVariable);
 
             if (null != initMethodRef) {
-                processor.InsertBefore(methodBodyFirstInstruction, createParametersArrayInstructions);
+                if (includeParameters)
+                {
+                    processor.InsertBefore(methodBodyFirstInstruction, createParametersArrayInstructions);
+                }
                 processor.InsertBefore(methodBodyFirstInstruction, callInitInstructions);
             }
 
@@ -122,6 +160,21 @@ namespace MethodDecorator.Fody {
             });
         }
 
+        private static string FormatMethodName(MethodDefinition method, string format)
+        {
+            if (string.IsNullOrEmpty(format))
+            {
+                return method.FullName;
+            }
+            return
+                format.Replace("{r}", method.ReturnType.Name)
+                    .Replace("{R}", method.ReturnType.FullName)
+                    .Replace("{n}", method.Name)
+                    .Replace("{N}", method.DeclaringType.FullName + "." + method.Name)
+                    .Replace("{a}", string.Join(", ", method.Parameters.Select(i => i.ParameterType.Name)))
+                    .Replace("{A}", string.Join(", ", method.Parameters.Select(i => i.ParameterType.FullName)));
+        }
+
         private static VariableDefinition AddVariableDefinition(MethodDefinition method, string variableName, TypeReference variableType) {
             var variableDefinition = new VariableDefinition(variableName, variableType);
             method.Body.Variables.Add(variableDefinition);
@@ -145,11 +198,10 @@ namespace MethodDecorator.Fody {
             ILProcessor processor,
             ICustomAttribute attribute,
             MethodDefinition method,
-            VariableDefinition attributeVariableDefinition,
-            VariableDefinition methodVariableDefinition) {
+            VariableDefinition attributeVariableDefinition) {
 
-            var getMethodFromHandleRef = this._referenceFinder.GetMethodReference(typeof(MethodBase), md => md.Name == "GetMethodFromHandle" &&
-                                                                                                            md.Parameters.Count == 2);
+            //var getMethodFromHandleRef = this._referenceFinder.GetMethodReference(typeof(MethodBase), md => md.Name == "GetMethodFromHandle" &&
+            //                                                                                                md.Parameters.Count == 2);
 
             var getTypeof = this._referenceFinder.GetMethodReference(typeof(Type), md => md.Name == "GetTypeFromHandle");
             var ctor = this._referenceFinder.GetMethodReference(typeof(Activator), md => md.Name == "CreateInstance" &&
@@ -172,10 +224,10 @@ namespace MethodDecorator.Fody {
                 {
                     processor.Create(OpCodes.Nop),
 
-                    processor.Create(OpCodes.Ldtoken, method),
-                    processor.Create(OpCodes.Ldtoken, method.DeclaringType),
-                    processor.Create(OpCodes.Call, getMethodFromHandleRef),          // Push method onto the stack, GetMethodFromHandle, result on stack
-                    processor.Create(OpCodes.Stloc_S, methodVariableDefinition),     // Store method in __fody$method
+                    //processor.Create(OpCodes.Ldtoken, method),
+                    //processor.Create(OpCodes.Ldtoken, method.DeclaringType),
+                    //processor.Create(OpCodes.Call, getMethodFromHandleRef),          // Push method onto the stack, GetMethodFromHandle, result on stack
+                    //processor.Create(OpCodes.Ldloc, methodVariableDefinition),     // Store method in __fody$method
                     
                     processor.Create(OpCodes.Nop),
 
@@ -206,7 +258,7 @@ namespace MethodDecorator.Fody {
             TypeDefinition typeDefinition,
             MethodDefinition memberDefinition,
             VariableDefinition attributeVariableDefinition,
-            VariableDefinition methodVariableDefinition,
+            string methodVariableDefinition,
             VariableDefinition parametersVariableDefinition,
             MethodReference initMethodRef) {
             // Call __fody$attribute.Init(this, methodBase, args)
@@ -229,12 +281,12 @@ namespace MethodDecorator.Fody {
             }
 
             // finally push the method base and arguments then call Init
-            list.AddRange(new[]
-                {
-                    processor.Create(OpCodes.Ldloc, methodVariableDefinition),
-                    processor.Create(OpCodes.Ldloc, parametersVariableDefinition),
-                    processor.Create(OpCodes.Callvirt, initMethodRef),
-                });
+            list.Add(processor.Create(OpCodes.Ldstr, methodVariableDefinition));
+            if (parametersVariableDefinition != null)
+            {
+                processor.Create(OpCodes.Ldloc, parametersVariableDefinition);
+            }
+            list.Add(processor.Create(OpCodes.Callvirt, initMethodRef));
 
             return list;
         }

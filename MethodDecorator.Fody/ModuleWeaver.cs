@@ -1,25 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml.Linq;
 using System.Threading.Tasks;
 
 using MethodDecorator.Fody;
 
 using Mono.Cecil;
 
-public class ModuleWeaver {
+public class ModuleWeaver
+{
+    public XElement Config { get; set; }
     public ModuleDefinition ModuleDefinition { get; set; }
     public IAssemblyResolver AssemblyResolver { get; set; }
     public Action<string> LogInfo { get; set; }
     public Action<string> LogWarning { get; set; }
     public Action<string> LogError { get; set; }
 
-
-    public void Execute() {
+    public void Execute()
+    {
         this.LogInfo = s => { };
         this.LogWarning = s => { };
 
-        var decorator = new MethodDecorator.Fody.MethodDecorator(this.ModuleDefinition);
+        var decorator = new MethodDecorator.Fody.MethodDecorator(this.ModuleDefinition, Config);
 
         foreach (var x in this.ModuleDefinition.AssemblyReferences) AssemblyResolver.Resolve(x);
 

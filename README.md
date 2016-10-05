@@ -1,5 +1,9 @@
 ![Icon](https://raw.github.com/Fody/MethodDecorator/master/Icons/package_icon.png)
 
+Changes:
+Does not use reflection and you can opt out of the 'object[] args' when initializing the attribute.
+See formatting.txt
+
 ## The nuget package  [![NuGet Status](http://img.shields.io/nuget/v/MethodDecorator.Fody.svg?style=flat)](https://www.nuget.org/packages/MethodDecorator.Fody/)
 
 https://nuget.org/packages/MethodDecorator.Fody/

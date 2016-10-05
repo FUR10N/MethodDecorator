@@ -1,0 +1,20 @@
+﻿FodyWeavers.xml args:
+  <FastMethodDecorator IncludeParameters="false" MethodFormat="{N}({a})" />
+
+Formatting Example:
+
+namespace SomeNamespace
+{
+  System.Boolean Min(System.Int32 first, System.Int32 second)
+  {
+    ...
+  }
+}
+
+Formats:
+{r} = Boolean
+{R} = System.Boolean
+{n} = Min
+{N} = SomeNamespace.Min
+{a} = Int32, Int32
+{A} = System.Int32, System.Int32

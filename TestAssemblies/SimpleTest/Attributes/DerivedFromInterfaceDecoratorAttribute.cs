@@ -8,11 +8,11 @@ using MethodDecoratorInterfaces;
 namespace SimpleTest {
     [AttributeUsage(validOn: AttributeTargets.Method | AttributeTargets.Constructor)]
     public class DerivedFromInterfaceDecoratorAttribute : Attribute, IMethodDecorator {
-        public void Init(object instance, MethodBase method, object[] args) {
+        public void Init(object instance, string method, object[] args) {
             if (null == method) throw new ArgumentNullException("method");
             if (null == instance) throw new ArgumentNullException("instance");
-            var methodDeclaration = method.DeclaringType.Name
-                                    + "." + method.Name
+            var methodDeclaration = method
+                                    + "." + method
                                     + "(" + string.Join(", ", args.Select(a => a.GetType().Name)) + ")";
 
             TestRecords.RecordInit(instance, methodDeclaration, args.Length);
